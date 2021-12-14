@@ -14,40 +14,46 @@
    limitations under the License.
  *************************************************************************/
 
-#ifndef SW_GOSSIP_NET_PENDING_LISTS_H
-#define SW_GOSSIP_NET_PENDING_LISTS_H
+#ifndef SW_GOSSIP_NET_MEMBER_SET_H
+#define SW_GOSSIP_NET_MEMBER_SET_H
 
-#include <chrono>
-#include <map>
-#include <string>
 #include <unordered_map>
-#include "task.h"
+#include <string>
+#include <optional>
+#include "utils.h"
 
 namespace sw::gossip {
 
-class PendingLists {
+class MemberSet {
 public:
-    explicit PendingLists(const std::chrono::milliseconds &timeout) : _timeout(timeout) {}
+    MemberSet();
 
-    void add(TaskUPtr task);
+    // If try_update returns a valid node, add it to recently updated set.
+    std::optional<Node> try_update(Node node);
 
-    std::vector<TaskUPtr> fetch(const std::string &id);
+    void add(Node node);
 
-    std::vector<Item> timeout_tasks();
+    std::vector<Node> fetch(std::size_t num);
 
 private:
-    using TimePoint = std::chrono::time_point<std::chrono::steady_clock,
-                                  std::chrono::milliseconds>;
+    std::string _gen_random_key_prefix() const;
 
-    TimePoint _now() const;
+    std::string _build_key(const std::string &key) const {
+        return _random_key_prefix + key;
+    }
 
-    std::unordered_map<std::string, std::vector<std::pair<TaskUPtr, TimePoint>>> _task_index;
+    std::vector<Node> _fetch_all();
 
-    std::map<TimePoint, std::vector<std::string>> _timeout_index;
+    std::vector<Node> _fetch(std::size_t num);
 
-    std::chrono::milliseconds _timeout;
+    using Map = std::unordered_map<std::string, Node>;
+    Map _members;
+
+    Map::iterator _iter;
+
+    std::string _random_key_prefix;
 };
 
 }
 
-#endif // end SW_GOSSIP_NET_PENDING_LISTS_H
+#endif // end SW_GOSSIP_NET_MEMBER_SET_H

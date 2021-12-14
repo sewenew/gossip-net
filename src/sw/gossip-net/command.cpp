@@ -22,20 +22,20 @@ namespace sw::gossip {
 
 void Command::run(const RespRequest::Args &args) {
     try {
-        auto rumors = _run(args, _net);
-
-        _net.update(rumors);
+        _run(args, _net);
     } catch (const Error &err) {
         // TODO: reply with error
     }
 }
 
-std::vector<Node> PingCommand::_run(const RespRequest::Args &args, GossipNet &net) {
+// ping self id ip port version [rumor id ip port version status]
+void PingCommand::_run(const RespRequest::Args &args, GossipNet &net) {
     auto cmd_args = _parse_args(args);
 
-    net.ack(cmd_args.self);
+    cmd_args.rumors.push_back(cmd_args.self);
+    net.update(cmd_args.rumors);
 
-    return std::move(cmd_args.rumors);
+    net.ack(cmd_args.self);
 }
 
 PingCommand::Args PingCommand::_parse_args(const RespRequest::Args &args) const {
@@ -50,12 +50,18 @@ PingCommand::Args PingCommand::_parse_args(const RespRequest::Args &args) const 
     return cmd_args;
 }
 
-std::vector<Node> PingReqCommand::_run(const RespRequest::Args &args, GossipNet &net) {
+// ping_req self id ip port version peer id ip port version [rumor id ip port version status]
+void PingReqCommand::_run(const RespRequest::Args &args, GossipNet &net) {
     auto cmd_args = _parse_args(args);
 
-    net.ping_req(cmd_args.peer);
+    cmd_args.rumors.push_back(cmd_args.self);
+    net.update(cmd_args.rumors);
 
-    return std::move(cmd_args.rumors);
+    // Forward ping.
+    net.ping(cmd_args.peer);
+
+    auto task = std::make_unique<PingReqTask>(cmd_args.peer.id, cmd_args.self);
+    net.add(std::move(task));
 }
 
 PingReqCommand::Args PingReqCommand::_parse_args(const RespRequest::Args &args) const {
@@ -72,12 +78,14 @@ PingReqCommand::Args PingReqCommand::_parse_args(const RespRequest::Args &args) 
     return cmd_args;
 }
 
-std::vector<Node> AckCommand::_run(const RespRequest::Args &args, GossipNet &net) {
+// ack self id ip port version [rumor id ip port version status]
+void AckCommand::_run(const RespRequest::Args &args, GossipNet &net) {
     auto cmd_args = _parse_args(args);
 
-    net.ping_ack(cmd_args.self);
+    cmd_args.rumors.push_back(cmd_args.self);
+    net.update(cmd_args.rumors);
 
-    return std::move(cmd_args.rumors);
+    net.do_task(cmd_args.self.id);
 }
 
 AckCommand::Args AckCommand::_parse_args(const RespRequest::Args &args) const {

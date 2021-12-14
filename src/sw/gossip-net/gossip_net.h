@@ -25,11 +25,17 @@
 #include "udp_server.h"
 #include "utils.h"
 #include "pending_lists.h"
+#include "member_set.h"
+#include "recently_updated_set.h"
 
 namespace sw::gossip {
 
 struct GossipNetOptions {
     UdpServerOptions server_options;
+
+    std::size_t lambda;
+
+    std::size_t max_rumor_num;
 };
 
 class GossipNet {
@@ -44,32 +50,45 @@ public:
 
     void join(const std::string &ip, int port);
 
-    void update(const std::vector<Node> &rumors);
+    void update(std::vector<Node> rumors)
 
     void ping_req(const Node &node);
 
-    void ack(const Node &node);
+    void ack(const Node &dest);
 
-    void ping(const Node &node);
+    void ack(const Node &dest, const Node &self);
 
-    void ping_ack(const Node &node);
+    void ping(const Node &dest);
+
+    void add(const std::string &id, std::unique_ptr<Task> task);
+
+    void do_task(const std::string &id);
 
 private:
+    void _append_node(RespReplyBuilder &builder,
+            const std::string &type,
+            const Node &node,
+            bool append_status = true);
+
     std::vector<Node> build_rumors();
 
     UdpServer _server;
 
-    Node self;
+    Node _self;
 
-    std::unordered_map<std::string, Node> _members;
+    // alive and suspected members including itself.
+    MemberSet _members;
+
+    // Members whose states are recently changed to alive or suspected.
+    RecentlyUpdatedSet _recently_updated_members;
+
+    GossipNetOptions _opts;
 
     std::thread _server_thread;
 
     std::mutex _mtx;
 
-    PendingLists<Node> _pending_pings;
-    PendingLists<Node> _pending_ping_reqs;
-    PendingLists<Node> _pending_passive_pings;
+    PendingLists<Task> _tasks;
 };
 
 }

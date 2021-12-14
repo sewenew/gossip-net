@@ -41,6 +41,8 @@ struct Node {
     NodeStatus status = NodeStatus::ALIVE;
 };
 
+bool operator<(const Node &lhs, const Node &rhs);
+
 namespace utils {
 
 constexpr auto *ALIVE = "ALIVE";

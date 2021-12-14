@@ -16,7 +16,32 @@
 
 #include "utils.h"
 
-namespace sw::gossip::utils {
+namespace sw::gossip {
+
+bool operator<(const Node &lhs, const Node &rhs) {
+    assert(node.id == id);
+
+    switch (rhs.status) {
+    case NodeStatus::ALIVE:
+        return (rhs.version > lhs.version) &&
+            (lhs.status == NodeStatus::SUSPECTED || lhs.status == NodeStatus::ALIVE);
+
+    case NodeStatus::SUSPECTED:
+        return (lhs.status == NodeStatus::SUSPECTED && rhs.version > lhs.version) ||
+            (lhs.status == ALIVE && rhs.version >= version);
+
+    case NodeStatus::FAILED:
+        return lhs.status == NodeStatus::ALIVE || lhs.status == NodeStatus::SUSPECTED;
+
+    default:
+        assert(false);
+    }
+
+    // In fact, never goes here.
+    return false;
+}
+
+namespace utils {
 
 NodeStatus parse_status(const std::string_view &sv) {
     if (sv == ALIVE) {
@@ -28,6 +53,8 @@ NodeStatus parse_status(const std::string_view &sv) {
     } else {
         return NodeStatus::UNKNOWN;
     }
+}
+
 }
 
 }
